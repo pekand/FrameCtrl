@@ -2,16 +2,43 @@ namespace FrameCtrl
 {
     internal static class Program
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
+        public static FrameCtrl frameCtrl = null;
+        public static Config config = new Config();
+        public static ConfigService configService = new ConfigService();
+
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
+            config = configService.Load();
+
+            string videoPath = null;
+            string playlistPath = null;
+
+            if (args.Length > 0)
+            {
+                string filePath = "";
+
+                if (File.Exists(filePath))
+                {
+                    string extension = Path.GetExtension(filePath);
+
+                    if (extension.ToLower() == "playlist")
+                    {
+                        playlistPath = filePath;
+                    }
+                    else 
+                    {
+                        videoPath = filePath;
+                    }
+                    
+                }
+            }
+
             ApplicationConfiguration.Initialize();
-            Application.Run(new FrameCtrl());
+            frameCtrl = new FrameCtrl(videoPath, playlistPath);            
+            Application.Run(frameCtrl);
+
+            configService.Save(config);
         }
     }
 }
