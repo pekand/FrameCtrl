@@ -75,6 +75,7 @@
             // 
             // FrameCtrl
             // 
+            AllowDrop = true;
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
@@ -84,7 +85,11 @@
             StartPosition = FormStartPosition.Manual;
             Text = "FrameCtrl";
             FormClosing += FrameCtrl_FormClosing;
-            Load += FrameCtrl_Load_1;
+            Load += FrameCtrl_Load;
+            DragDrop += FrameCtrl_DragDrop;
+            DragEnter += FrameCtrl_DragEnter;
+            Move += FrameCtrl_Move;
+            Resize += FrameCtrl_Resize;
             ((System.ComponentModel.ISupportInitialize)videoView).EndInit();
             contextMenuStrip.ResumeLayout(false);
             ResumeLayout(false);

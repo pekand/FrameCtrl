@@ -7,27 +7,200 @@ namespace FrameCtrl
 {
     public partial class FrameCtrl : Form
     {
-
-        private string videoPath = null;
-        private string playlistPath = null;
-
+        private Config config = null;
         private LibVLC libVLC;
         private Media media;
         private MediaPlayer mediaplayer;
+        private bool lockMove = false;
 
-        public FrameCtrl(string videoPath = null, string playlistPath = null)
+        // CONSTRUCTOR
+        public FrameCtrl(Config config)
         {
-            this.videoPath = videoPath;
-            this.playlistPath = playlistPath;
+            this.config = config;
 
             InitializeComponent();
             SetupPlayer();
 
-            if (this.videoPath != null && File.Exists(this.videoPath)) {
-                this.openVideoFile(this.videoPath);
+            if (this.config.videoPath != null && File.Exists(this.config.videoPath) && VideoHelper.IsVideoFile(this.config.videoPath))
+            {
+                this.openVideoFile(this.config.videoPath, config.currentPosition);
             }
         }
 
+        // EVENT LOAD
+        private void FrameCtrl_Load(object sender, EventArgs e)
+        {
+            lockMove = true;
+            this.Left = this.config.Left;
+            this.Top = this.config.Top;
+            this.Width = this.config.Width;
+            this.Height = this.config.Height;
+
+            if (this.Width < 50)
+            {
+                this.Width = 50;
+            }
+
+            if (this.Height < 50)
+            {
+                this.Height = 50;
+            }
+
+            if ((this.config.Left < 0 && this.config.Top < 0))
+            {
+                this.CenterOnCurrentScreen();
+            }
+
+            if (!this.IsWindowSuccessfullyVisible()) {
+                this.Width = 300;
+                this.Height = 300;
+                this.CenterOnCurrentScreen();
+            }
+
+            lockMove = false;
+        }
+
+        // EVENT CLOSINF
+        private void FrameCtrl_FormClosing(object sender, FormClosingEventArgs e)
+        {
+
+            if (this.WindowState == FormWindowState.Normal)
+            {
+                this.config.Left = this.Left;
+                this.config.Top = this.Top;
+                this.config.Width = this.Width;
+                this.config.Height = this.Height;
+            }
+
+            if (mediaplayer != null)
+            {
+                this.videoView.MediaPlayer = null;
+                this.mediaplayer.Dispose();
+                this.media.Dispose();
+                this.libVLC.Dispose();
+            }
+        }
+
+        // KEY
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (mediaplayer == null) return base.ProcessCmdKey(ref msg, keyData);
+
+
+            bool isShiftPressed = (keyData & Keys.Shift) == Keys.Shift;
+
+            Keys keyCode = (keyData & Keys.KeyCode);
+
+            switch (keyCode)
+            {
+                case Keys.Home:
+                    ToBeggining();
+                    UpdateTitle(mediaplayer.Time);
+                    return true; 
+
+                case Keys.End:
+                    ToEnd();
+                    UpdateTitle(mediaplayer.Time);
+                    return true;
+
+                case Keys.Left:
+                    SeekRelative(-1, isShiftPressed);
+                    UpdateTitle(mediaplayer.Time);
+                    return true; 
+
+                case Keys.Right:
+                    SeekRelative(1, isShiftPressed);
+                    UpdateTitle(mediaplayer.Time);
+                    return true;
+
+                case Keys.Space:
+                    if (mediaplayer.IsPlaying) mediaplayer.Pause(); else mediaplayer.Play();
+                    UpdateTitle(mediaplayer.Time);
+                    return true;
+            }
+
+
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // KEY
+        private void FrameCtrl_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (mediaplayer == null) return;
+
+        }
+
+        // MOUSE
+        private void videoView_MouseClick(object sender, MouseEventArgs e)
+        {
+
+        }
+
+        // MOUSE
+        private void videoView_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                contextMenuStrip.Show(this.videoView, e.Location);
+            }
+        }
+
+        // DRAG
+        private void FrameCtrl_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        // DRAG
+        private void FrameCtrl_DragDrop(object sender, DragEventArgs e)
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+            if (files != null)
+            {
+                this.config.playlist.Clear();
+                foreach (string filePath in files)
+                {
+                    if (File.Exists(filePath) && VideoHelper.IsVideoFile(filePath))
+                    {
+                        this.config.playlist.Add(filePath);
+                    }
+                }
+
+                if (this.config.playlist.Count > 0)
+                {
+                    this.config.playlistPosition = 0;
+                    this.config.videoPath = this.config.playlist[this.config.playlistPosition];
+                    this.openVideoFile(this.config.videoPath);
+                }
+
+            }
+        }
+
+        // CONTEXTMENU OPEN
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "Video Files|*.mp4;*.mkv;*.avi;*.webm|All files|*.*";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    this.config.videoPath = openFileDialog.FileName;
+                    this.openVideoFile(this.config.videoPath);
+                }
+            }
+        }
+
+        // CONTEXTMENU EXIT
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -45,8 +218,14 @@ namespace FrameCtrl
             this.libVLC = new LibVLC(true, options);
         }
 
-        public void openVideoFile(string videoPath) 
+        public bool openVideoFile(string videoPath, long skipTime = 0)
         {
+
+            if (!File.Exists(videoPath))
+            {
+                return false;
+            }
+
             if (mediaplayer != null)
             {
                 this.videoView.MediaPlayer = null;
@@ -55,41 +234,86 @@ namespace FrameCtrl
             }
 
 
-            this.media = new Media(this.libVLC, new Uri(videoPath));
+            this.media = new Media(this.libVLC, new Uri(videoPath), ":play-and-pause");
             this.mediaplayer = new MediaPlayer(media);
             this.videoView.MediaPlayer = this.mediaplayer;
             this.videoView.ContextMenuStrip = contextMenuStrip;
             mediaplayer.EnableMouseInput = false;
             mediaplayer.EnableKeyInput = false;
+            config.currentPosition = 0;
+            config.currentPercent = 0;
 
             mediaplayer.TimeChanged += (sender, e) =>
             {
-                this.BeginInvoke(new Action(() => {
+                this.BeginInvoke(new Action(() =>
+                {
                     UpdateTitle(e.Time);
                 }));
             };
 
             mediaplayer.Playing += (sender, e) =>
             {
-                this.BeginInvoke(new Action(() => {
+                this.BeginInvoke(new Action(() =>
+                {
                     UpdateTitle(mediaplayer.Time);
                 }));
             };
 
+            mediaplayer.EndReached += (sender, e) =>
+            {
+                this.BeginInvoke(new Action(() =>
+                {
+                    EndReached();
+                }));
+            };
+
+            mediaplayer.PositionChanged += (sender, e) =>
+            {
+                if (skipTime > 0)
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        if (skipTime > 0)
+                        {
+                            mediaplayer.Time = skipTime;
+                            skipTime = 0;
+                        }
+                    }));
+
+
+                }
+
+                if (e.Position >= 0.99)
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        EndReached();
+                    }));
+                }
+                else
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        PositionChange();
+                    }));
+                }
+            };
+
             mediaplayer.Play(media);
+
+            return true;
         }
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        private void PositionChange()
         {
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "Video Files|*.mp4;*.mkv;*.avi;*.webm|All files|*.*";
+            config.currentPosition = mediaplayer.Time;
+            config.currentPercent = mediaplayer.Position;
+        }
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    this.openVideoFile(openFileDialog.FileName);
-                }
-            }
+        private void EndReached()
+        {
+            config.currentPosition = 0;
+            config.currentPercent = 0;
         }
 
         private void UpdateTitle(long currentTime)
@@ -112,56 +336,6 @@ namespace FrameCtrl
                 : t.ToString(@"mm\:ss");
         }
 
-        private void FrameCtrl_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            if (mediaplayer != null)
-            {
-                this.videoView.MediaPlayer = null;
-                this.mediaplayer.Dispose();
-                this.media.Dispose();
-                this.libVLC.Dispose();
-            }
-        }
-
-        private void FrameCtrl_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void FrameCtrl_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (mediaplayer == null) return;
-
-        }
-
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        {
-            if (mediaplayer == null) return base.ProcessCmdKey(ref msg, keyData);
-
-            // Detekcia Shiftu pomocou bitovej masky
-            bool isShiftPressed = (keyData & Keys.Shift) == Keys.Shift;
-
-            // Extrahovanie samotného klávesu (bez modifikátorov)
-            Keys keyCode = (keyData & Keys.KeyCode);
-
-            switch (keyCode)
-            {
-                case Keys.Left:
-                    SeekRelative(-1, isShiftPressed);
-                    return true; // Povieme systému, že sme kláves spracovali
-
-                case Keys.Right:
-                    SeekRelative(1, isShiftPressed);
-                    return true;
-
-                case Keys.Space:
-                    if (mediaplayer.IsPlaying) mediaplayer.Pause(); else mediaplayer.Play();
-                    return true;
-            }
-
-            return base.ProcessCmdKey(ref msg, keyData);
-        }
-
         private void SeekRelative(int direction, bool isShiftPressed)
         {
             long interval = isShiftPressed ? 60000 : 1000;
@@ -175,22 +349,69 @@ namespace FrameCtrl
             mediaplayer.Time = newTime;
         }
 
-        private void FrameCtrl_Load_1(object sender, EventArgs e)
+        private void ToBeggining()
         {
+            if (mediaplayer == null) return;
 
+            mediaplayer.Position = 0.0f;
         }
 
-        private void videoView_MouseClick(object sender, MouseEventArgs e)
+        private void ToEnd()
         {
+            if (mediaplayer == null) return;
 
+            mediaplayer.Position = 0.999f;
         }
 
-        private void videoView_MouseDown(object sender, MouseEventArgs e)
+        private void FrameCtrl_Move(object sender, EventArgs e)
         {
-            if (e.Button == MouseButtons.Right)
-            {
-                contextMenuStrip.Show(this.videoView, e.Location);
+            if (lockMove) return;
+
+            if (this.WindowState == FormWindowState.Normal) {
+                this.config.Left = this.Left;
+                this.config.Top = this.Top;
             }
+        }
+
+        private void FrameCtrl_Resize(object sender, EventArgs e)
+        {
+            if (lockMove) return;
+
+            if (this.WindowState == FormWindowState.Normal)
+            {
+                this.config.Width = this.Width;
+                this.config.Height = this.Height;
+            }
+        }
+
+        public void CenterOnCurrentScreen()
+        {
+            Screen currentScreen = Screen.FromControl(this);
+
+            var workingArea = currentScreen.WorkingArea;
+
+            this.Left = workingArea.Left + (workingArea.Width - this.Width) / 2;
+            this.Top = workingArea.Top + (workingArea.Height - this.Height) / 2;
+        }
+
+        public bool IsWindowSuccessfullyVisible()
+        {
+            if (!this.Visible || this.WindowState == FormWindowState.Minimized)
+            {
+                return false;
+            }
+
+            bool isOnScreen = false;
+            foreach (var screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(this.Bounds))
+                {
+                    isOnScreen = true;
+                    break;
+                }
+            }
+
+            return isOnScreen;
         }
     }
 }

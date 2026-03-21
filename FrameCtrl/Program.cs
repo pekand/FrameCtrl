@@ -24,18 +24,18 @@ namespace FrameCtrl
 
                     if (extension.ToLower() == "playlist")
                     {
-                        playlistPath = filePath;
+                        config.playlistPath = filePath;
                     }
                     else 
                     {
-                        videoPath = filePath;
+                        config.videoPath = filePath;
                     }
                     
                 }
             }
 
             ApplicationConfiguration.Initialize();
-            frameCtrl = new FrameCtrl(videoPath, playlistPath);            
+            frameCtrl = new FrameCtrl(config);            
             Application.Run(frameCtrl);
 
             configService.Save(config);
