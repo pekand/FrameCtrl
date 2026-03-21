@@ -374,6 +374,8 @@ namespace FrameCtrl
 
             if (this.historyItem != null) {
                 this.historyItem.finished = true;
+                this.historyItem.Position = 0;
+                this.mediaplayer.Time = 0;
             }
             PlaylistNext();
         }
