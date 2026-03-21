@@ -15,6 +15,7 @@ namespace FrameCtrl
         public string playlistPath = null;
         public int playlistPosition = 0;
         public List<string> playlist = new List<string>();
+        public List<HistoryItem> history = new List<HistoryItem>();
 
         public int Left = -1;
         public int Top = -1;
