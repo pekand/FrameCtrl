@@ -27,5 +27,34 @@ namespace FrameCtrl
                 }
             }
         }
+
+        public static List<string> GetFullPaths(string baseFile)
+        {
+            List<string> fullPaths = new List<string>();
+
+            if (!File.Exists(baseFile))
+            {
+                return fullPaths;
+            }
+
+            string baseDirectory = Path.GetDirectoryName(baseFile);
+
+            foreach (string line in File.ReadLines(baseFile))
+            {
+                string relativePath = line.Trim();
+
+                if (string.IsNullOrWhiteSpace(relativePath))
+                    continue;
+
+                string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, relativePath));
+
+                if (File.Exists(fullPath))
+                {
+                    fullPaths.Add(fullPath);
+                }
+            }
+
+            return fullPaths;
+        }
     }
 }

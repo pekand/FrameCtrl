@@ -2,6 +2,7 @@ using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
 using System.Numerics;
 using System.Windows.Forms;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace FrameCtrl
 {
@@ -13,14 +14,17 @@ namespace FrameCtrl
         private MediaPlayer mediaplayer;
         private bool lockMove = false;
         public HistoryItem historyItem = null;
+        private string playlistPath = null;
 
         // CONSTRUCTOR
-        public FrameCtrl(Config config)
+        public FrameCtrl(Config config, string playlistPath = null)
         {
             this.config = config;
 
             InitializeComponent();
             SetupPlayer();
+
+            this.playlistPath = playlistPath;
         }
 
         // EVENT LOAD
@@ -55,7 +59,10 @@ namespace FrameCtrl
 
             lockMove = false;
 
-            if (this.config.videoPath != null && File.Exists(this.config.videoPath) && VideoHelper.IsVideoFile(this.config.videoPath))
+            if (this.playlistPath != null && File.Exists(this.playlistPath))
+            {
+                LoadPlaylist(this.playlistPath);
+            } else if (this.config.videoPath != null && File.Exists(this.config.videoPath) && VideoHelper.IsVideoFile(this.config.videoPath))
             {
                 this.openVideoFile(this.config.videoPath, config.currentPosition);
             }
@@ -137,8 +144,11 @@ namespace FrameCtrl
                     if (this.historyItem != null) this.historyItem.finished = !this.historyItem.finished;                    
                     return true;
 
-                    
+                case Keys.S:
+                    ShowLabel(this.config.videoPath);
+                    return true;
 
+                   
             }
 
 
@@ -188,16 +198,28 @@ namespace FrameCtrl
 
             if (files != null)
             {
+                string playlistPath = null;
+
                 this.config.playlist.Clear();
                 foreach (string filePath in files)
                 {
-                    if (File.Exists(filePath) && VideoHelper.IsVideoFile(filePath))
+                    if (File.Exists(filePath))
                     {
-                        this.config.playlist.Add(filePath);
+                        if (VideoHelper.IsVideoFile(filePath)) {
+                            this.config.playlist.Add(filePath);
+                            playlistPath = "";
+                        }
+
+                        if (Path.GetExtension(filePath) == Program.defaultExtension)
+                        {
+                            playlistPath = filePath;
+                        }
                     }
                 }
 
-                if (this.config.playlist.Count > 0)
+                if (playlistPath!= null) {
+                    LoadPlaylist(playlistPath);
+                } else if (this.config.playlist.Count > 0)
                 {
                     this.config.playlistPosition = 0;
                     this.config.videoPath = this.config.playlist[this.config.playlistPosition];
@@ -253,10 +275,10 @@ namespace FrameCtrl
                 this.historyItem.Position = mediaplayer.Time;
             }
 
-            HistoryItem historyItem = this.AddOrFindHistoryItem(videoPath);
+            this.historyItem = this.AddOrFindHistoryItem(videoPath);
 
-            if (skipTime == 0 && historyItem != null && historyItem.Position != 0) {
-                skipTime = historyItem.Position;
+            if (skipTime == 0 && this.historyItem != null && this.historyItem.Position != 0) {
+                skipTime = this.historyItem.Position;
             }
 
             if (mediaplayer != null)
@@ -334,6 +356,8 @@ namespace FrameCtrl
 
             mediaplayer.Play(media);
 
+            ShowLabel(videoPath);
+
             return true;
         }
 
@@ -350,7 +374,8 @@ namespace FrameCtrl
 
             if (this.historyItem != null) {
                 this.historyItem.finished = true;
-            } 
+            }
+            PlaylistNext();
         }
 
         private void UpdateTitle(long currentTime)
@@ -454,22 +479,24 @@ namespace FrameCtrl
 
         public HistoryItem AddOrFindHistoryItem(string videoPath)
         {
+            HistoryItem historyItem = null;
+
             if (File.Exists(videoPath)) {        
                 string hash = FileHelper.GetPartialHash(videoPath);
 
                 foreach (HistoryItem item in config.history) {
                     if (item.VideoHash == hash) {
-                        this.historyItem = item;
-                        this.historyItem.VideoPath = videoPath;
-                        return this.historyItem;
+                        historyItem = item;
+                        historyItem.VideoPath = videoPath;
+                        return historyItem;
                     }
                 }
 
-                this.historyItem = new HistoryItem();
-                this.historyItem.VideoHash = hash;
-                this.historyItem.VideoPath = videoPath;
-                config.history.Add(this.historyItem);
-                return this.historyItem;
+                historyItem = new HistoryItem();
+                historyItem.VideoHash = hash;
+                historyItem.VideoPath = videoPath;
+                config.history.Add(historyItem);
+                return historyItem;
             }
 
             return null;
@@ -491,6 +518,63 @@ namespace FrameCtrl
                 this.openVideoFile(this.config.playlist[this.config.playlistPosition]);
             }
 
+        }
+
+        private void ShowLabel(string text)
+        {
+            StatusLabel.Text = text;
+            StatusLabel.Visible = true;
+
+            System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
+            timer.Interval = 5000; // 5 seconds
+            timer.Tick += (s, e) =>
+            {
+                StatusLabel.Visible = false;
+                timer.Stop();
+                timer.Dispose(); // Clean up memory
+            };
+
+            timer.Start();
+        }
+
+        public void LoadPlaylist(string playlistPath)
+        {
+            if (!File.Exists(playlistPath))
+            {
+                return;
+            }
+
+            this.config.currentPosition = 0;
+            this.config.playlist.Clear();
+            List<string> videoFiles = FileHelper.GetFullPaths(playlistPath);
+            foreach (string videoFile in videoFiles)
+            {
+                if (VideoHelper.IsVideoFile(videoFile))
+                {
+                    this.config.playlist.Add(videoFile);
+                }
+            }
+
+
+            if (this.config.playlist.Count > 0)
+            {
+                HistoryItem historyItem = null;
+                foreach (string videoFile in this.config.playlist)
+                {
+
+                    historyItem = this.AddOrFindHistoryItem(videoFile);
+                    if (!historyItem.finished)
+                    {
+
+                        break;
+                    }
+                }
+
+                if (historyItem != null)
+                {
+                    this.openVideoFile(historyItem.VideoPath, historyItem.Position);
+                }
+            }
         }
 
     }

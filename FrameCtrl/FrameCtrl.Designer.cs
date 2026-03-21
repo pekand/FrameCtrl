@@ -34,6 +34,7 @@
             contextMenuStrip = new ContextMenuStrip(components);
             openToolStripMenuItem = new ToolStripMenuItem();
             exitToolStripMenuItem = new ToolStripMenuItem();
+            StatusLabel = new Label();
             ((System.ComponentModel.ISupportInitialize)videoView).BeginInit();
             contextMenuStrip.SuspendLayout();
             SuspendLayout();
@@ -73,12 +74,26 @@
             exitToolStripMenuItem.Text = "Exit";
             exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
+            // StatusLabel
+            // 
+            StatusLabel.AutoSize = true;
+            StatusLabel.BackColor = Color.Black;
+            StatusLabel.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            StatusLabel.ForeColor = Color.White;
+            StatusLabel.Location = new Point(12, 9);
+            StatusLabel.Name = "StatusLabel";
+            StatusLabel.Size = new Size(89, 21);
+            StatusLabel.TabIndex = 1;
+            StatusLabel.Text = "StatusLabel";
+            StatusLabel.Visible = false;
+            // 
             // FrameCtrl
             // 
             AllowDrop = true;
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(StatusLabel);
             Controls.Add(videoView);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "FrameCtrl";
@@ -93,6 +108,7 @@
             ((System.ComponentModel.ISupportInitialize)videoView).EndInit();
             contextMenuStrip.ResumeLayout(false);
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -101,5 +117,6 @@
         private ContextMenuStrip contextMenuStrip;
         private ToolStripMenuItem exitToolStripMenuItem;
         private ToolStripMenuItem openToolStripMenuItem;
+        private Label StatusLabel;
     }
 }
