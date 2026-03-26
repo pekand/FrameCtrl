@@ -207,7 +207,7 @@ namespace FrameCtrl
                     {
                         if (VideoHelper.IsVideoFile(filePath)) {
                             this.config.playlist.Add(filePath);
-                            playlistPath = "";
+                            playlistPath = null;
                         }
 
                         if (Path.GetExtension(filePath) == Program.defaultExtension)
