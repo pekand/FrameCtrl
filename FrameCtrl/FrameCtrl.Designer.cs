@@ -33,6 +33,8 @@
             videoView = new LibVLCSharp.WinForms.VideoView();
             contextMenuStrip = new ContextMenuStrip(components);
             openToolStripMenuItem = new ToolStripMenuItem();
+            optionsToolStripMenuItem = new ToolStripMenuItem();
+            mostTopToolStripMenuItem = new ToolStripMenuItem();
             exitToolStripMenuItem = new ToolStripMenuItem();
             StatusLabel = new Label();
             ((System.ComponentModel.ISupportInitialize)videoView).BeginInit();
@@ -41,6 +43,7 @@
             // 
             // videoView
             // 
+            videoView.AllowDrop = true;
             videoView.BackColor = Color.Black;
             videoView.Dock = DockStyle.Fill;
             videoView.Location = new Point(0, 0);
@@ -50,27 +53,44 @@
             videoView.TabIndex = 0;
             videoView.TabStop = false;
             videoView.Text = "videoView1";
+            videoView.DragDrop += videoView_DragDrop;
+            videoView.DragEnter += videoView_DragEnter;
             videoView.KeyDown += FrameCtrl_KeyDown;
             videoView.MouseClick += videoView_MouseClick;
             videoView.MouseDown += videoView_MouseDown;
             // 
             // contextMenuStrip
             // 
-            contextMenuStrip.Items.AddRange(new ToolStripItem[] { openToolStripMenuItem, exitToolStripMenuItem });
+            contextMenuStrip.Items.AddRange(new ToolStripItem[] { openToolStripMenuItem, optionsToolStripMenuItem, exitToolStripMenuItem });
             contextMenuStrip.Name = "contextMenuStrip";
-            contextMenuStrip.Size = new Size(115, 52);
+            contextMenuStrip.Size = new Size(181, 98);
+            contextMenuStrip.Opening += contextMenuStrip_Opening;
             // 
             // openToolStripMenuItem
             // 
             openToolStripMenuItem.Name = "openToolStripMenuItem";
-            openToolStripMenuItem.Size = new Size(114, 24);
+            openToolStripMenuItem.Size = new Size(180, 24);
             openToolStripMenuItem.Text = "Open";
             openToolStripMenuItem.Click += openToolStripMenuItem_Click;
+            // 
+            // optionsToolStripMenuItem
+            // 
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { mostTopToolStripMenuItem });
+            optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
+            optionsToolStripMenuItem.Size = new Size(180, 24);
+            optionsToolStripMenuItem.Text = "Options";
+            // 
+            // mostTopToolStripMenuItem
+            // 
+            mostTopToolStripMenuItem.Name = "mostTopToolStripMenuItem";
+            mostTopToolStripMenuItem.Size = new Size(180, 24);
+            mostTopToolStripMenuItem.Text = "Most top";
+            mostTopToolStripMenuItem.Click += mostTopToolStripMenuItem_Click;
             // 
             // exitToolStripMenuItem
             // 
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            exitToolStripMenuItem.Size = new Size(114, 24);
+            exitToolStripMenuItem.Size = new Size(180, 24);
             exitToolStripMenuItem.Text = "Exit";
             exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
@@ -118,5 +138,7 @@
         private ToolStripMenuItem exitToolStripMenuItem;
         private ToolStripMenuItem openToolStripMenuItem;
         private Label StatusLabel;
+        private ToolStripMenuItem optionsToolStripMenuItem;
+        private ToolStripMenuItem mostTopToolStripMenuItem;
     }
 }

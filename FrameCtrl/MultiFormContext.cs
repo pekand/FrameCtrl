@@ -10,19 +10,45 @@ namespace FrameCtrl
     {
         private List<FrameCtrl> forms = new List<FrameCtrl>();
 
-        public MultiFormContext(Config config, string playlistPath = null)
+        public MultiFormContext(string[] args, Config config)
         {
-            CreateNewForm(config, playlistPath);
+            CreateNewForm(args, config);
         }
 
-        public void CreateNewForm(Config config, string playlistPath = null)
+        public void CreateNewForm(string[] args, Config config)
         {
-            FrameCtrl form = new FrameCtrl(config, playlistPath);
+
+            string filePath = null;
+
+            if (args.Length > 0)
+            {
+                filePath = args[0];
+            }
+
+            if (forms.Count() == 1 && !forms[0].HasVideoAssigned())
+            {
+                forms[0].OpenFile(filePath);
+                forms[0].BringFormTofront();
+                return;
+            }
+
+            foreach (FrameCtrl existingForm in forms) {
+                if (existingForm.video.VideoPath == filePath) {
+                    existingForm.BringFormTofront();
+                    return;
+                }
+            }
+
+            if ((filePath == "" || filePath  == null) && config.videoFilesHistory.Count() > 0) {
+                filePath = config.videoFilesHistory[config.videoFilesHistory.Count() - 1].VideoPath;
+            }
+
+            FrameCtrl form = new FrameCtrl(config, filePath);
             forms.Add(form);
 
             form.FormClosed += (s, e) =>
             {
-
+                forms.Remove(form);
                 if (forms.Count <= 0)
                 {
                     ExitThread();

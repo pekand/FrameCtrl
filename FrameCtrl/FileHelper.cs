@@ -28,7 +28,7 @@ namespace FrameCtrl
             }
         }
 
-        public static List<string> GetFullPaths(string baseFile)
+        public static List<string> GetFullPathsFromFileLines(string baseFile)
         {
             List<string> fullPaths = new List<string>();
 

@@ -23,10 +23,18 @@ namespace FrameCtrl
 
         public void Save(Config config)
         {
-            XmlSerializer serializer = new XmlSerializer(typeof(Config));
-            using (StreamWriter writer = new StreamWriter(_filePath))
+            try
             {
-                serializer.Serialize(writer, config);
+                XmlSerializer serializer = new XmlSerializer(typeof(Config));
+                using (StreamWriter writer = new StreamWriter(_filePath))
+                {
+                    serializer.Serialize(writer, config);
+                }
+
+            }
+            catch (Exception)
+            {
+
             }
         }
 
@@ -37,11 +45,20 @@ namespace FrameCtrl
                 return new Config();
             }
 
-            XmlSerializer serializer = new XmlSerializer(typeof(Config));
-            using (StreamReader reader = new StreamReader(_filePath))
+            try
             {
-                return (Config)serializer.Deserialize(reader);
+                XmlSerializer serializer = new XmlSerializer(typeof(Config));
+                using (StreamReader reader = new StreamReader(_filePath))
+                {
+                    return (Config)serializer.Deserialize(reader);
+                }
             }
+            catch (Exception)
+            {
+
+                return new Config();
+            }
+            
         }
     }
 }
