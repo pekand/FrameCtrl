@@ -1,5 +1,6 @@
 using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
+using System.IO;
 using System.Numerics;
 using System.Windows.Forms;
 using static System.Net.Mime.MediaTypeNames;
@@ -18,6 +19,9 @@ namespace FrameCtrl
 
         public HistoryItem video = null;
         public PlaylistHistoryItem playlist = null;
+
+        MemoryStream memoryStream = null;
+        StreamMediaInput mediaInput = null;
 
         // CONSTRUCTOR
         public FrameCtrl(Config config, string filePath = null)
@@ -98,7 +102,7 @@ namespace FrameCtrl
             }
         }
 
-        // EVENT CLOSINF
+        // EVENT CLOSING
         private void FrameCtrl_FormClosing(object sender, FormClosingEventArgs e)
         {
 
@@ -113,6 +117,7 @@ namespace FrameCtrl
             if (this.video != null && mediaplayer != null)
             {
                 this.video.Position = mediaplayer.Time;
+                this.config.Muted = mediaplayer.Mute;
             }
 
             if (mediaplayer != null)
@@ -122,6 +127,12 @@ namespace FrameCtrl
                 this.media.Dispose();
                 this.libVLC.Dispose();
             }
+        }
+
+        // EVENT CLOSED
+        private void FrameCtrl_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            this.Clean();
         }
 
         // KEY
@@ -168,6 +179,10 @@ namespace FrameCtrl
                 case Keys.Space:
                     if (mediaplayer.IsPlaying) mediaplayer.Pause(); else mediaplayer.Play();
                     UpdateTitle(mediaplayer.Time);
+                    return true;
+
+                case Keys.M:
+                    mediaplayer.ToggleMute();
                     return true;
 
                 case Keys.F:
@@ -319,8 +334,10 @@ namespace FrameCtrl
             this.Activate();
         }
 
-        public bool HasVideoAssigned() {
-            if (this.video != null) {
+        public bool HasVideoAssigned()
+        {
+            if (this.video != null)
+            {
                 return true;
             }
 
@@ -356,6 +373,45 @@ namespace FrameCtrl
             }
         }
 
+        public Media CreateRamMedia(LibVLC libVLC, string videoPath)
+        {
+            this.Clean();
+
+            FileInfo fileInfo = new FileInfo(videoPath);
+            long maxRamSize = 2L * 1024 * 1024 * 1024; // 2 GB limit
+
+            if (fileInfo.Length < maxRamSize)
+            {
+                byte[] fileBytes = File.ReadAllBytes(videoPath);
+                memoryStream = new MemoryStream(fileBytes);
+                mediaInput = new StreamMediaInput(memoryStream);
+                return new Media(libVLC, mediaInput, ":play-and-pause");
+            }
+
+            return new Media(libVLC, videoPath, FromType.FromPath, ":play-and-pause");
+        }
+
+        public void Clean()
+        {
+            if (this.media != null)
+            {
+                this.media?.Dispose();
+                this.media = null;
+            }
+
+            if (this.mediaInput != null)
+            {
+                mediaInput?.Dispose();
+                mediaInput = null;
+            }
+
+            if (this.memoryStream != null)
+            {
+                memoryStream?.Dispose();
+                memoryStream = null;
+            }
+        }
+
         public bool openVideoFile(string videoPath, long skipTime = 0)
         {
 
@@ -380,16 +436,19 @@ namespace FrameCtrl
             {
                 this.videoView.MediaPlayer = null;
                 this.mediaplayer.Dispose();
+                this.mediaplayer = null;
                 this.media.Dispose();
+                this.media = null;
             }
 
-            this.video.VideoPath = videoPath;
-            this.media = new Media(this.libVLC, new Uri(videoPath), ":play-and-pause");
+            this.Clean();
+            this.media = this.CreateRamMedia(this.libVLC, videoPath);
             this.mediaplayer = new MediaPlayer(media);
             this.videoView.MediaPlayer = this.mediaplayer;
             this.videoView.ContextMenuStrip = contextMenuStrip;
             mediaplayer.EnableMouseInput = false;
             mediaplayer.EnableKeyInput = false;
+            this.mediaplayer.Mute = this.config.Muted;
             this.video.Position = 0;
 
             mediaplayer.TimeChanged += (sender, e) =>
@@ -688,5 +747,7 @@ namespace FrameCtrl
         {
             mostTopToolStripMenuItem.Checked = this.config.MostTop;
         }
+
+
     }
 }

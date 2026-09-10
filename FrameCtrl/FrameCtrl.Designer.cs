@@ -63,13 +63,13 @@
             // 
             contextMenuStrip.Items.AddRange(new ToolStripItem[] { openToolStripMenuItem, optionsToolStripMenuItem, exitToolStripMenuItem });
             contextMenuStrip.Name = "contextMenuStrip";
-            contextMenuStrip.Size = new Size(181, 98);
+            contextMenuStrip.Size = new Size(131, 76);
             contextMenuStrip.Opening += contextMenuStrip_Opening;
             // 
             // openToolStripMenuItem
             // 
             openToolStripMenuItem.Name = "openToolStripMenuItem";
-            openToolStripMenuItem.Size = new Size(180, 24);
+            openToolStripMenuItem.Size = new Size(130, 24);
             openToolStripMenuItem.Text = "Open";
             openToolStripMenuItem.Click += openToolStripMenuItem_Click;
             // 
@@ -77,20 +77,20 @@
             // 
             optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { mostTopToolStripMenuItem });
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
-            optionsToolStripMenuItem.Size = new Size(180, 24);
+            optionsToolStripMenuItem.Size = new Size(130, 24);
             optionsToolStripMenuItem.Text = "Options";
             // 
             // mostTopToolStripMenuItem
             // 
             mostTopToolStripMenuItem.Name = "mostTopToolStripMenuItem";
-            mostTopToolStripMenuItem.Size = new Size(180, 24);
+            mostTopToolStripMenuItem.Size = new Size(138, 24);
             mostTopToolStripMenuItem.Text = "Most top";
             mostTopToolStripMenuItem.Click += mostTopToolStripMenuItem_Click;
             // 
             // exitToolStripMenuItem
             // 
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            exitToolStripMenuItem.Size = new Size(180, 24);
+            exitToolStripMenuItem.Size = new Size(130, 24);
             exitToolStripMenuItem.Text = "Exit";
             exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
@@ -120,6 +120,7 @@
             StartPosition = FormStartPosition.Manual;
             Text = "FrameCtrl";
             FormClosing += FrameCtrl_FormClosing;
+            FormClosed += FrameCtrl_FormClosed;
             Load += FrameCtrl_Load;
             DragDrop += FrameCtrl_DragDrop;
             DragEnter += FrameCtrl_DragEnter;

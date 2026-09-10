@@ -17,6 +17,7 @@ namespace FrameCtrl
         public int Width = 300;
         public int Height = 300;
         public bool MostTop = false;
+        public bool Muted = false;
 
         public PlaylistHistoryItem AddOrFindPlaylistItem(string playlistPath)
         {
