@@ -135,7 +135,7 @@ namespace FrameCtrl
             this.Clean();
         }
 
-        // KEY
+        // EVENT KEY PRESS
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (mediaplayer == null) return base.ProcessCmdKey(ref msg, keyData);
@@ -201,20 +201,20 @@ namespace FrameCtrl
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        // KEY
+        // EVENT KEY DOWN
         private void FrameCtrl_KeyDown(object sender, KeyEventArgs e)
         {
             if (mediaplayer == null) return;
 
         }
 
-        // MOUSE
+        // EVENT MOUSE CLICK
         private void videoView_MouseClick(object sender, MouseEventArgs e)
         {
 
         }
 
-        // MOUSE
+        // EVENT MOUSE DOWN
         private void videoView_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -223,7 +223,7 @@ namespace FrameCtrl
             }
         }
 
-        // DRAG
+        // EVENT DRAG ENTER
         private void FrameCtrl_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -236,7 +236,7 @@ namespace FrameCtrl
             }
         }
 
-        // DRAG
+        // EVENT DRAG DROP
         private void FrameCtrl_DragDrop(object sender, DragEventArgs e)
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -291,7 +291,67 @@ namespace FrameCtrl
             }
         }
 
-        // CONTEXTMENU OPEN
+        // EVENT FORM MOVE
+        private void FrameCtrl_Move(object sender, EventArgs e)
+        {
+            if (lockMove) return;
+
+            if (this.WindowState == FormWindowState.Normal)
+            {
+                this.config.Left = this.Left;
+                this.config.Top = this.Top;
+            }
+        }
+
+        // EVENT FORM RESIZE
+        private void FrameCtrl_Resize(object sender, EventArgs e)
+        {
+            if (lockMove) return;
+
+            if (this.WindowState == FormWindowState.Normal)
+            {
+                this.config.Width = this.Width;
+                this.config.Height = this.Height;
+            }
+        }
+        // EVENT DRAG ENTER
+        private void videoView_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        // EVENT DRAG DROP
+        private void videoView_DragDrop(object sender, DragEventArgs e)
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+            if (files.Count() == 1)
+            {
+                OpenFile(files[0]);
+                return;
+            }
+
+            foreach (string filePath in files)
+            {
+                string[] args = new string[] { filePath };
+                Program.context.CreateNewForm(args, this.config);
+            }
+        }
+
+        // CONTEXTMENU OPENING
+        private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            mostTopToolStripMenuItem.Checked = this.config.MostTop;
+        }
+
+        // CONTEXTMENU OPEN FILE
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
@@ -305,24 +365,75 @@ namespace FrameCtrl
             }
         }
 
+        // CONTEXTMENU MOST TOP
+        private void mostTopToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.config.MostTop = !this.config.MostTop;
+            mostTopToolStripMenuItem.Checked = this.config.MostTop;
+            this.TopMost = this.config.MostTop;
+        }
+
         // CONTEXTMENU EXIT
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             this.Close();
         }
 
-        private void SetupPlayer()
+        // ACTION CLEAN RESET TO DEFAULT
+        public void Clean()
         {
-            Core.Initialize();
-            var options = new string[]
+            if (this.media != null)
             {
-                "--no-mouse-events",
-                "--no-keyboard-events"
-            };
+                this.media?.Dispose();
+                this.media = null;
+            }
 
-            this.libVLC = new LibVLC(true, options);
+            if (this.mediaInput != null)
+            {
+                mediaInput?.Dispose();
+                mediaInput = null;
+            }
+
+            if (this.memoryStream != null)
+            {
+                memoryStream?.Dispose();
+                memoryStream = null;
+            }
         }
 
+        // ACTION FORM CENTER ON SCREEN
+        public void CenterOnCurrentScreen()
+        {
+            Screen currentScreen = Screen.FromControl(this);
+
+            var workingArea = currentScreen.WorkingArea;
+
+            this.Left = workingArea.Left + (workingArea.Width - this.Width) / 2;
+            this.Top = workingArea.Top + (workingArea.Height - this.Height) / 2;
+        }
+
+        // ACTION FORM CHECK FORM VIDSIBILITY
+        public bool IsWindowSuccessfullyVisible()
+        {
+            if (!this.Visible || this.WindowState == FormWindowState.Minimized)
+            {
+                return false;
+            }
+
+            bool isOnScreen = false;
+            foreach (var screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(this.Bounds))
+                {
+                    isOnScreen = true;
+                    break;
+                }
+            }
+
+            return isOnScreen;
+        }
+
+        // ACTION FORM BRING TO FRONT
         public void BringFormTofront()
         {
             if (this.WindowState == FormWindowState.Minimized)
@@ -334,16 +445,30 @@ namespace FrameCtrl
             this.Activate();
         }
 
-        public bool HasVideoAssigned()
+        // ACTION FORM UPDATE TITLE
+        private void UpdateTitle(long currentTime)
         {
-            if (this.video != null)
-            {
-                return true;
-            }
+            if (mediaplayer == null) return;
 
-            return false;
+            long totalTime = mediaplayer.Length; // Total duration in ms
+
+            string currentStr = FormatTime(currentTime);
+            string totalStr = FormatTime(totalTime);
+            string finished = (this.video != null && this.video.finished) ? " - FINISHED" : "";
+
+            this.Text = $"FrameCtrl - {currentStr} / {totalStr}" + finished;
         }
 
+        // ACTION FORM TITLE TIME
+        private string FormatTime(long managedTime)
+        {
+            TimeSpan t = TimeSpan.FromMilliseconds(managedTime);
+            return t.TotalHours >= 1
+                ? t.ToString(@"hh\:mm\:ss")
+                : t.ToString(@"mm\:ss");
+        }
+
+        // ACTION FILE OPEN
         public void OpenFile(string filePath)
         {
             string playlistPath = null;
@@ -373,6 +498,31 @@ namespace FrameCtrl
             }
         }
 
+        // ACTION VIDEO PLAYER SETUP
+        private void SetupPlayer()
+        {
+            Core.Initialize();
+            var options = new string[]
+            {
+                "--no-mouse-events",
+                "--no-keyboard-events"
+            };
+
+            this.libVLC = new LibVLC(true, options);
+        }
+
+        // ACTION VIDEO ASSIGNED
+        public bool HasVideoAssigned()
+        {
+            if (this.video != null)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        // ACTION VIDEO CREATE MEDIA IN RAM
         public Media CreateRamMedia(LibVLC libVLC, string videoPath)
         {
             this.Clean();
@@ -391,27 +541,7 @@ namespace FrameCtrl
             return new Media(libVLC, videoPath, FromType.FromPath, ":play-and-pause");
         }
 
-        public void Clean()
-        {
-            if (this.media != null)
-            {
-                this.media?.Dispose();
-                this.media = null;
-            }
-
-            if (this.mediaInput != null)
-            {
-                mediaInput?.Dispose();
-                mediaInput = null;
-            }
-
-            if (this.memoryStream != null)
-            {
-                memoryStream?.Dispose();
-                memoryStream = null;
-            }
-        }
-
+        // ACTION VIDEO OPEN
         public bool openVideoFile(string videoPath, long skipTime = 0)
         {
 
@@ -514,142 +644,7 @@ namespace FrameCtrl
             return true;
         }
 
-        private void PositionChange()
-        {
-            this.video.Position = mediaplayer.Time;
-        }
-
-        private void EndReached()
-        {
-            if (this.video != null) // reset to beggining but mark as finished
-            {
-                this.video.Position = 0;
-                this.video.finished = true;
-                this.video.Position = 0;
-                this.mediaplayer.Time = 0;
-            }
-            PlaylistNext();
-        }
-
-        private void UpdateTitle(long currentTime)
-        {
-            if (mediaplayer == null) return;
-
-            long totalTime = mediaplayer.Length; // Total duration in ms
-
-            string currentStr = FormatTime(currentTime);
-            string totalStr = FormatTime(totalTime);
-            string finished = (this.video != null && this.video.finished) ? " - FINISHED" : "";
-
-            this.Text = $"FrameCtrl - {currentStr} / {totalStr}" + finished;
-        }
-
-        private string FormatTime(long managedTime)
-        {
-            TimeSpan t = TimeSpan.FromMilliseconds(managedTime);
-            return t.TotalHours >= 1
-                ? t.ToString(@"hh\:mm\:ss")
-                : t.ToString(@"mm\:ss");
-        }
-
-        private void SeekRelative(int direction, bool isShiftPressed)
-        {
-            long interval = isShiftPressed ? 60000 : 1000;
-            long jump = direction * interval;
-
-            long newTime = mediaplayer.Time + jump;
-
-            if (newTime < 0) newTime = 0;
-            if (newTime > mediaplayer.Length) newTime = mediaplayer.Length;
-
-            mediaplayer.Time = newTime;
-        }
-
-        private void ToBeggining()
-        {
-            if (mediaplayer == null) return;
-
-            mediaplayer.Position = 0.0f;
-        }
-
-        private void ToEnd()
-        {
-            if (mediaplayer == null) return;
-
-            mediaplayer.Time = mediaplayer.Length - 5000;
-        }
-
-        private void FrameCtrl_Move(object sender, EventArgs e)
-        {
-            if (lockMove) return;
-
-            if (this.WindowState == FormWindowState.Normal)
-            {
-                this.config.Left = this.Left;
-                this.config.Top = this.Top;
-            }
-        }
-
-        private void FrameCtrl_Resize(object sender, EventArgs e)
-        {
-            if (lockMove) return;
-
-            if (this.WindowState == FormWindowState.Normal)
-            {
-                this.config.Width = this.Width;
-                this.config.Height = this.Height;
-            }
-        }
-
-        public void CenterOnCurrentScreen()
-        {
-            Screen currentScreen = Screen.FromControl(this);
-
-            var workingArea = currentScreen.WorkingArea;
-
-            this.Left = workingArea.Left + (workingArea.Width - this.Width) / 2;
-            this.Top = workingArea.Top + (workingArea.Height - this.Height) / 2;
-        }
-
-        public bool IsWindowSuccessfullyVisible()
-        {
-            if (!this.Visible || this.WindowState == FormWindowState.Minimized)
-            {
-                return false;
-            }
-
-            bool isOnScreen = false;
-            foreach (var screen in Screen.AllScreens)
-            {
-                if (screen.WorkingArea.IntersectsWith(this.Bounds))
-                {
-                    isOnScreen = true;
-                    break;
-                }
-            }
-
-            return isOnScreen;
-        }
-
-        private void PlaylistNext()
-        {
-            if (this.playlist != null && this.playlist.videList.Count > 0 && this.playlist.playlistPosition < this.playlist.videList.Count - 1)
-            {
-                this.playlist.playlistPosition++;
-                this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
-            }
-        }
-
-        private void PlaylistPrev()
-        {
-            if (this.playlist != null && this.playlist.videList.Count > 0 && this.playlist.playlistPosition > 0)
-            {
-                this.playlist.playlistPosition--;
-                this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
-            }
-
-        }
-
+        // ACTION VIDEO SHOW FILE LABEL
         private void ShowLabel(string text)
         {
             StatusLabel.Text = text;
@@ -667,6 +662,56 @@ namespace FrameCtrl
             timer.Start();
         }
 
+        // ACTION VIDEO EVENT POSITION CHANGE
+        private void PositionChange()
+        {
+            this.video.Position = mediaplayer.Time;
+        }
+
+        // ACTION VIDEO EVENT END REACHED
+        private void EndReached()
+        {
+            if (this.video != null) // reset to beggining but mark as finished
+            {
+                this.video.Position = 0;
+                this.video.finished = true;
+                this.video.Position = 0;
+                this.mediaplayer.Time = 0;
+            }
+            PlaylistNext();
+        }
+
+        // ACTION VIDEO SEEK
+        private void SeekRelative(int direction, bool isShiftPressed)
+        {
+            long interval = isShiftPressed ? 60000 : 1000;
+            long jump = direction * interval;
+
+            long newTime = mediaplayer.Time + jump;
+
+            if (newTime < 0) newTime = 0;
+            if (newTime > mediaplayer.Length) newTime = mediaplayer.Length;
+
+            mediaplayer.Time = newTime;
+        }
+
+        // ACTION VIDEO TO BEGGINING
+        private void ToBeggining()
+        {
+            if (mediaplayer == null) return;
+
+            mediaplayer.Position = 0.0f;
+        }
+
+        // ACTION VIDEO TO END
+        private void ToEnd()
+        {
+            if (mediaplayer == null) return;
+
+            mediaplayer.Time = mediaplayer.Length - 5000;
+        }
+
+        // ACTION PLAYLIST LOAD
         public void LoadPlaylist()
         {
             if (!File.Exists(playlist.playlistPath))
@@ -707,47 +752,63 @@ namespace FrameCtrl
             }
         }
 
-        private void videoView_DragEnter(object sender, DragEventArgs e)
+        // ACTION PLAYLIST NEXT
+        private void PlaylistNext()
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (this.playlist != null && this.playlist.videList.Count > 0 && this.playlist.playlistPosition < this.playlist.videList.Count - 1)
             {
-                e.Effect = DragDropEffects.Copy;
+                this.playlist.playlistPosition++;
+                this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
             }
-            else
-            {
-                e.Effect = DragDropEffects.None;
-            }
-        }
-
-        private void videoView_DragDrop(object sender, DragEventArgs e)
-        {
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-
-            if (files.Count() == 1)
-            {
-                OpenFile(files[0]);
-                return;
-            }
-
-            foreach (string filePath in files)
-            {
-                string[] args = new string[] { filePath };
-                Program.context.CreateNewForm(args, this.config);
+            else if(this.video != null && File.Exists(this.video.VideoPath) ) {
+                string nextVideoFile = this.GetNextVideoPath(this.video.VideoPath);
+                if (nextVideoFile != this.video.VideoPath) {
+                    this.openVideoFile(nextVideoFile);
+                }
             }
         }
 
-        private void mostTopToolStripMenuItem_Click(object sender, EventArgs e)
+        // ACTION PLAYLIST PREV
+        private void PlaylistPrev()
         {
-            this.config.MostTop = !this.config.MostTop;
-            mostTopToolStripMenuItem.Checked = this.config.MostTop;
-            this.TopMost = this.config.MostTop;
+            if (this.playlist != null && this.playlist.videList.Count > 0 && this.playlist.playlistPosition > 0)
+            {
+                this.playlist.playlistPosition--;
+                this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
+            }
+
         }
 
-        private void contextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        // ACTION PLAYLIST FIND NEXT FILE
+        public string GetNextVideoPath(string currentFilePath)
         {
-            mostTopToolStripMenuItem.Checked = this.config.MostTop;
+            string directoryPath = Path.GetDirectoryName(currentFilePath);
+            if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return string.Empty;
+            }
+
+            string[] allowedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov", ".wmv" };
+
+            string[] videoFiles = Directory.EnumerateFiles(directoryPath)
+                .Where(filePath => allowedExtensions.Contains(Path.GetExtension(filePath), StringComparer.OrdinalIgnoreCase))
+                .OrderBy(filePath => filePath, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (videoFiles.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            int currentIndex = Array.FindIndex(videoFiles, filePath => filePath.Equals(currentFilePath, StringComparison.OrdinalIgnoreCase));
+
+            if (currentIndex == -1)
+            {
+                return videoFiles[0];
+            }
+
+            int nextIndex = (currentIndex + 1) % videoFiles.Length;
+            return videoFiles[nextIndex];
         }
-
-
     }
 }
