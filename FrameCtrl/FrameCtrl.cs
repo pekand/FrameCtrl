@@ -1,4 +1,5 @@
 using LibVLCSharp.Shared;
+using LibVLCSharp.Shared.Structures;
 using LibVLCSharp.WinForms;
 using System.IO;
 using System.Numerics;
@@ -506,6 +507,7 @@ namespace FrameCtrl
             {
                 "--no-mouse-events",
                 "--no-keyboard-events"
+                //"--audio-language=eng,en"
             };
 
             this.libVLC = new LibVLC(true, options);
@@ -637,6 +639,11 @@ namespace FrameCtrl
                 }
             };
 
+            mediaplayer.Playing += (sender, e) =>
+            {
+                this.SelectEnglishAudioTrack(mediaplayer);
+            };
+
             mediaplayer.Play(media);
 
             ShowLabel(videoPath);
@@ -711,6 +718,26 @@ namespace FrameCtrl
             mediaplayer.Time = mediaplayer.Length - 5000;
         }
 
+        // ACTION VIDEO SELECT ENGLISH AUDIO
+        public void SelectEnglishAudioTrack(MediaPlayer mediaplayer)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                Thread.Sleep(200);
+
+                TrackDescription[] tracks = mediaplayer.AudioTrackDescription;
+                TrackDescription englishTrack = tracks.FirstOrDefault(track =>
+                    track.Name != null &&
+                    (track.Name.Contains("eng", StringComparison.OrdinalIgnoreCase) ||
+                     track.Name.Contains("english", StringComparison.OrdinalIgnoreCase)));
+
+                if (englishTrack.Id != -1)
+                {
+                    mediaplayer.SetAudioTrack(englishTrack.Id);
+                }
+            });
+        }
+
         // ACTION PLAYLIST LOAD
         public void LoadPlaylist()
         {
@@ -761,7 +788,7 @@ namespace FrameCtrl
                 this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
             }
             else if(this.video != null && File.Exists(this.video.VideoPath) ) {
-                string nextVideoFile = this.GetNextVideoPath(this.video.VideoPath);
+                string nextVideoFile = this.GetNextVideoPath(this.video.VideoPath, false);
                 if (nextVideoFile != this.video.VideoPath) {
                     this.openVideoFile(nextVideoFile);
                 }
@@ -775,12 +802,19 @@ namespace FrameCtrl
             {
                 this.playlist.playlistPosition--;
                 this.openVideoFile(this.playlist.videList[this.playlist.playlistPosition]);
+            } else if (this.video != null && File.Exists(this.video.VideoPath))
+            {
+                string nextVideoFile = this.GetNextVideoPath(this.video.VideoPath, true);
+                if (nextVideoFile != this.video.VideoPath)
+                {
+                    this.openVideoFile(nextVideoFile);
+                }
             }
 
         }
 
         // ACTION PLAYLIST FIND NEXT FILE
-        public string GetNextVideoPath(string currentFilePath)
+        public string GetNextVideoPath(string currentFilePath, bool reverse = false)
         {
             string directoryPath = Path.GetDirectoryName(currentFilePath);
             if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
@@ -798,6 +832,11 @@ namespace FrameCtrl
             if (videoFiles.Length == 0)
             {
                 return string.Empty;
+            }
+
+            if (reverse)
+            {
+                Array.Reverse(videoFiles);
             }
 
             int currentIndex = Array.FindIndex(videoFiles, filePath => filePath.Equals(currentFilePath, StringComparison.OrdinalIgnoreCase));
